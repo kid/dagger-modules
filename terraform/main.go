@@ -24,7 +24,7 @@ func New(directory Optional[string], version Optional[string]) *Terraform {
 }
 
 // example usage: "dagger call plan --directory stack"
-func (m *Terraform) Plan(ctx context.Context) *Container {
+func (m *Terraform) Plan(ctx context.Context) *Directory {
 	exec := m.Base().
 		WithExec([]string{"plan", "-input=false", "-out", filepath.Join(OUT_DIR, PLAN_FILE)})
 
@@ -33,13 +33,15 @@ func (m *Terraform) Plan(ctx context.Context) *Container {
 		panic(err)
 	}
 
-	return exec.WithNewFile(filepath.Join(OUT_DIR, "apply.txt"), ContainerWithNewFileOpts{
-		Contents: output,
-	})
+	return exec.
+		WithNewFile(filepath.Join(OUT_DIR, "apply.txt"), ContainerWithNewFileOpts{
+			Contents: output,
+		}).
+		Directory(OUT_DIR)
 }
 
-func (m *Terraform) PlanOutput(ctx context.Context) *Directory {
-	return m.Plan(ctx).Directory(OUT_DIR)
+func (m *Terraform) PlanOutput(ctx context.Context) *File {
+	return m.Plan(ctx).File("apply.txt")
 }
 
 // example usage: "dagger call apply --directory stack"
