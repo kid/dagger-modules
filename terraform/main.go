@@ -12,20 +12,18 @@ const (
 )
 
 type Terraform struct {
-	Version   string
-	Directory string
+	Version string
 }
 
-func New(directory Optional[string], version Optional[string]) *Terraform {
+func New(version Optional[string]) *Terraform {
 	return &Terraform{
-		Directory: version.GetOr("fixtures"),
-		Version:   version.GetOr("1.6.6"),
+		Version: version.GetOr("1.6.6"),
 	}
 }
 
 // example usage: "dagger call plan --directory stack"
-func (m *Terraform) Plan(ctx context.Context) *Directory {
-	exec := m.Base().
+func (m *Terraform) Plan(ctx context.Context, directory *Directory) *Directory {
+	exec := m.Base(directory).
 		WithExec([]string{"plan", "-input=false", "-out", filepath.Join(OUT_DIR, PLAN_FILE)})
 
 	output, err := exec.Stdout(ctx)
@@ -40,21 +38,21 @@ func (m *Terraform) Plan(ctx context.Context) *Directory {
 		Directory(OUT_DIR)
 }
 
-func (m *Terraform) PlanOutput(ctx context.Context) *File {
-	return m.Plan(ctx).File("apply.txt")
+func (m *Terraform) PlanOutput(ctx context.Context, directory *Directory) *File {
+	return m.Plan(ctx, directory).File("apply.txt")
 }
 
 // example usage: "dagger call apply --directory stack"
-func (m *Terraform) Apply(ctx context.Context, plan *File) *Container {
-	return m.Base().
+func (m *Terraform) Apply(directory *Directory, plan *File) *Container {
+	return m.Base(directory).
 		WithFile(PLAN_FILE, plan).
 		WithExec([]string{"apply", "apply.tfplan"})
 }
 
-func (m *Terraform) Base() *Container {
+func (m *Terraform) Base(directory *Directory) *Container {
 	return dag.Container().
 		From(fmt.Sprintf("docker.io/hashicorp/terraform:%s", m.Version)).
 		WithDirectory(OUT_DIR, dag.Directory()).
-		WithMountedDirectory("/src", dag.Host().Directory(m.Directory)).
+		WithMountedDirectory("/src", directory).
 		WithWorkdir("/src")
 }
